@@ -8,7 +8,10 @@ from chess import Board, engine
 
 from states.game import GameStates
 
-from utils import render_board
+from utils import (
+    render_board,
+    answer_board
+)
 
 #  ---
 import asyncio
@@ -38,30 +41,60 @@ async def handle_text_move(message: Message, state: FSMContext):
 
     # processing move
     await state.set_state(GameStates.processing_move)
-
+    # get move result
     result = await process_move(move, board)
 
-    if result["success"] == False:
+    # check if move was successful
+    if not result["success"]:
         if result["status"] == "wrong_move":
             # keep waiting for user move
-            await state.set_state(GameStates.wait_for_move)
             await message.answer("❌ Нелегальний хід, спробуй щось інше")
+            await state.set_state(GameStates.wait_for_move)
             return
 
-    if result["success"] == True:
-        if result["status"] == "checkmate":
-            await state.clear()
-            await state.set_state(GameStates.idle)
-            return
-        elif result["status"] == "moved":
-            await state.clear()
-            await state.set_state(GameStates.wait_for_oponent_move)
-            await state.update_data(board_fen=board.fen())
-            await message.answer_photo(
-                render_board(board=board),
-                caption="Твій хід виконаний ✅"
-            )
-            return
+    # send board with successful move
+    await answer_board(message=message, board=board, caption="✅ Твій хід виконаний")
+
+    # check if move result was ordinary or final
+    if result["status"] == "checkmate":
+        await state.clear()
+        # send win message
+        await message.answer("🎖 Ти переміг! Вітаю!")
+        return
+    
+    elif result["status"] == "moved":
+        await state.set_state(GameStates.wait_for_oponent_move)
+
+    # if 'moved' - game has not ended yet, do bot's move
+    result_bot = await stockfish_move(board)
+
+    # give user time to glance board with his move
+    await asyncio.sleep(2)
+
+    # illusion of bot thinking
+    await message.answer("💡 Бот думає над ходом, зачекай")
+    await asyncio.sleep(2)
+
+    # send board with bot's move
+    await answer_board(message=message, board=board, caption="💥 Бот зробив свій хід")
+
+
+    # check if an error could occure during bot's move
+    if not result_bot["success"]:
+        await message.answer("⚠️ Упс, бот помилився...")
+        return
+    
+    if result_bot["status"] == "checkmate":
+        await state.clear()
+        await message.answer("🤖 Бот переміг, удачі наступного разу")
+        return
+        
+
+    elif result_bot["status"] == "moved":
+        await message.answer("♟ Твоя черга:")
+        await state.set_state(GameStates.wait_for_move)
+        await state.update_data(board_fen=board.fen())
+        return
             
 # handle voice message
 @router.message(GameStates.wait_for_move, F.voice)
@@ -105,9 +138,15 @@ async def process_move(move: str, board: Board):
 
 # Process stockfish move
 async def stockfish_move(board: Board):
-    with engine.SimpleEngine.popen_uci("C:\Users\Cтас\source\repos\Python-AI-exam-db\stockfish\stockfish-windows-x86-64-avx2.exe") as engine:
-        result = engine.play(board, engine.Limit(time=0.5))
-        board.push(result.move)
+    try:
+        with engine.SimpleEngine.popen_uci(r"C:\Users\Cтас\source\repos\Python-AI-exam-db\stockfish\stockfish-windows-x86-64-avx2.exe") as sf:
+            result = sf.play(board, engine.Limit(time=0.5))
+            board.push(result.move)
+    except ValueError:
+        return {
+            "success": False,
+            "status": "wrong_move"
+        }
     # check if bot won
     if board.is_checkmate():
         return {

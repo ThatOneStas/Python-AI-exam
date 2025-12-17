@@ -11,7 +11,7 @@ from keyboards import (
 from chess import Board
 
 from utils import (
-    render_board
+    answer_board
 )
 
 router = Router()
@@ -30,10 +30,7 @@ async def menu_handler(call: CallbackQuery, callback_data: MenuCallback, state: 
         await call.message.answer("🔄 Створюємо шахматний стіл...")
 
         board = Board()
-        await call.message.answer_photo(
-            render_board(board=board),
-            caption="Твій хід ♟"
-        )
+        await answer_board(message=call.message, board=board, caption="♟ Твій хід:")
 
         await state.set_state(GameStates.wait_for_move)
         await state.update_data(board_fen=board.fen())
