@@ -10,7 +10,8 @@ from states.game import GameStates
 
 from utils import (
     render_board,
-    answer_board
+    answer_board,
+    ask_for_move
 )
 
 #  ---
@@ -69,7 +70,7 @@ async def handle_text_move(message: Message, state: FSMContext):
     result_bot = await stockfish_move(board)
 
     # give user time to glance board with his move
-    await asyncio.sleep(2)
+    await asyncio.sleep(1.5)
 
     # illusion of bot thinking
     await message.answer("💡 Бот думає над ходом, зачекай")
@@ -81,7 +82,7 @@ async def handle_text_move(message: Message, state: FSMContext):
 
     # check if an error could occure during bot's move
     if not result_bot["success"]:
-        await message.answer("⚠️ Упс, бот помилився...")
+        await message.answer("⚠️ Упс, бот помилився..")
         return
     
     if result_bot["status"] == "checkmate":
@@ -91,7 +92,8 @@ async def handle_text_move(message: Message, state: FSMContext):
         
 
     elif result_bot["status"] == "moved":
-        await message.answer("♟ Твоя черга:")
+        # ask for user move
+        await ask_for_move(message=message, pvp=False)
         await state.set_state(GameStates.wait_for_move)
         await state.update_data(board_fen=board.fen())
         return
