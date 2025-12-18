@@ -13,6 +13,11 @@ from .audio import (
     download_file
 )
 
+from .text import (
+    extract_move_ai,
+    extract_move
+)
+
 from .groq import ask_groq
 
 __all__ = [

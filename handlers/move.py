@@ -16,7 +16,8 @@ from utils import (
     extract_voice_file,
     convert_ogg_to_wav,
     download_file,
-    ask_groq
+    extract_move_ai,
+    extract_move,
 )
 
 #  ---
@@ -59,9 +60,17 @@ async def handle_voice_move(message: Message, state: FSMContext):
     # convertation
     convert_ogg_to_wav(path_ogg, path_wav)
 
+    # getting recognized text
     text = recognize_uk_from_file(path_wav)
+    if not text:
+        await message.answer("❌ Не зміг розпізнати говір. Спробуй ще раз, або напиши, наприклад: 'a2a4'")
 
-    await message.answer(f"Received voice message, extracted text: {text}")
+    # extracting move
+    move = await extract_move_ai(text)
+    if not move:
+        await message.answer("❌ Не зміг розпізнати хід. Спробуй ще раз, або напиши, наприклад: 'a2a4'")
+
+    await move(message=message, move=text, state=state)
 
 # move processing logic
 async def move(message: Message, move: str, state: FSMContext):
@@ -131,26 +140,6 @@ async def move(message: Message, move: str, state: FSMContext):
         await state.set_state(GameStates.wait_for_move)
         await state.update_data(board_fen=board.fen())
         return
-
-# extract move from voice-text with groq
-def extract_chess_move(text: str) -> str | None:
-    prompt = f"""
-        Ти аналізуєш команди користувача для шахів.
-
-        Завдання:
-        - Якщо у фразі є хід у форматі шахів — поверни ТІЛЬКИ його у форматі: a2a4
-        - Якщо хід неможливо визначити — поверни слово: error
-
-        Приклади:
-        "Перемісти пішака а2 на а4" → a2a4
-        "ходи конем з g1 на f3" → g1f3
-        "я не знаю" → error
-
-        Фраза:
-        {text}
-    """
-    result = ask_groq(prompt).strip().lower()
-    return result if result != "error" else None
 
 # --- temporary here
 # Process user move
