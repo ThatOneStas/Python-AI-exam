@@ -68,12 +68,6 @@ async def handle_voice_move(message: Message, state: FSMContext):
 
 # move processing logic
 async def move(message: Message, move: str, state: FSMContext):
-    # additional check
-    match = MOVE_RE.search(move)
-    if not match:
-        await message.answer("❌ Хід не є правильним, приклад ходу: 'a2a4'")
-        return
-
     data = await state.get_data()
     board = Board(data["board_fen"])
 
