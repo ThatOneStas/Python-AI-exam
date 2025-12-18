@@ -28,5 +28,7 @@ __all__ = [
     "extract_voice_file",
     "convert_ogg_to_wav",
     "download_file",
-    "ask_groq"
+    "ask_groq",
+    "extract_move_ai",
+    "extract_move"
 ]

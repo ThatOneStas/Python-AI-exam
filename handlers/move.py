@@ -3,8 +3,6 @@ from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 
-import re
-
 from chess import Board, engine
 
 from states.game import GameStates
@@ -20,16 +18,13 @@ from utils import (
     extract_move,
 )
 
-#  ---
-from aiogram.types import BufferedInputFile
-
 router = Router()
 
 # handle text message
 @router.message(GameStates.wait_for_move, F.text)
 async def handle_text_move(message: Message, state: FSMContext):
-    # format text
-    text = message.text.lower()
+    # get text
+    text = message.text
     # check
     move = extract_move(text)
     # error
@@ -37,7 +32,7 @@ async def handle_text_move(message: Message, state: FSMContext):
         await message.answer("❌ Не зміг знайти хід. Напиши, наприклад: 'a2a4'")
         return
     # process move
-    await move(message=message, move=text, state=state)
+    await process_move(message=message, move=move, state=state)
             
 # handle voice message
 @router.message(GameStates.wait_for_move, F.voice)
@@ -60,21 +55,21 @@ async def handle_voice_move(message: Message, state: FSMContext):
         await message.answer("❌ Не зміг розпізнати говір. Спробуй ще раз, або напиши, наприклад: 'a2a4'")
 
     # extracting move
-    move = await extract_move_ai(text)
+    move = extract_move_ai(text)
     if not move:
         await message.answer("❌ Не зміг розпізнати хід. Спробуй ще раз, або напиши, наприклад: 'a2a4'")
 
-    await move(message=message, move=text, state=state)
+    await process_move(message=message, move=move, state=state)
 
 # move processing logic
-async def move(message: Message, move: str, state: FSMContext):
+async def process_move(message: Message, move: str, state: FSMContext):
     data = await state.get_data()
     board = Board(data["board_fen"])
 
     # processing move
     await state.set_state(GameStates.processing_move)
     # get move result
-    result = await process_move(move, board)
+    result = await move_figure(move, board)
 
     # check if move was successful
     if not result["success"]:
@@ -131,7 +126,7 @@ async def move(message: Message, move: str, state: FSMContext):
 
 # --- temporary here
 # Process user move
-async def process_move(move: str, board: Board):
+async def move_figure(move: str, board: Board):
     # make move
     try:
         board.push_uci(move)

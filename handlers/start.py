@@ -8,5 +8,5 @@ router = Router()
 async def start_handler(msg: types.Message):
     await msg.answer(
         "Вітаю у Chess! Обери дію:",
-        reply_markup=main_menu()
+        reply_markup=main_menu(),
     )

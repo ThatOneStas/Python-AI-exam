@@ -5,7 +5,7 @@ from .groq import (
 )
 
 MOVE_RE = re.compile(r"[a-h][1-8][a-h][1-8]")
-MOVE_POS_RE = re.compile(r"[a-h][1-8][a-h][1-8]")
+MOVE_POS_RE = re.compile(r"[a-h][1-8]")
 
 # extract move from voice-text with groq
 def extract_move_ai(text: str) -> str | None:
@@ -21,9 +21,11 @@ def extract_move_ai(text: str) -> str | None:
     else:
         # additional check if ai hallucinated
         match = MOVE_RE.search(result)
+
         if not match:
             return None
-        else: return match.group()
+        else:
+            return match.group()
 
 # normalize voice recognized text
 def normalize_text(text: str) -> str:
@@ -46,13 +48,14 @@ def normalize_text(text: str) -> str:
 
 # extract move from default message (a2a4 or a2 a4)
 def extract_move(text: str) -> str | None:
+    text = normalize_text(text)
     text = re.sub(r'[^a-zA-Z0-9]', ' ', text.lower())
     match_re = list(MOVE_RE.finditer(text.lower()))
+
     if not match_re:
         match_pos_re = list(MOVE_POS_RE.finditer(text.lower()))
         if len(match_pos_re) >= 2:
-            return match_pos_re[-1].group() + match_pos_re[-2].group()
+            return match_pos_re[-2].group() + match_pos_re[-1].group()
         else: return None
     else:
-        print(match_re)
         return match_re[-1].group()
