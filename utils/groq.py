@@ -18,11 +18,18 @@ def ask_groq(prompt):
     payload = {
         "model": MODEL,
         "messages": [
-            {"role": "system", "content": "Ти україномовний помічник!"},
+            {"role": "system", "content": "Ти парсер шахових команд."
+                "Твоя задача — повернути ТІЛЬКИ шаховий хід у форматі a2a4."
+                "Якщо хід не визначений — поверни слово error."
+                "Жодних пояснень."
+                "Приклади:"
+                "'Перемісти пішака а2 на а4' → a2a4"
+                "'Перемісти пішака g3 на g4, хоча ні, краще пішака b2, b4' → a2a3"
+                "'ходи конем з g1 на f3' → g1f3"
+                "'я не знаю' → error"},
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.7,
-        # "max_token": 500,
+        "temperature": 0,
         "stream": False
     }
 
@@ -35,6 +42,5 @@ def ask_groq(prompt):
         data = res.json()
         return data["choices"][0]["message"]["content"].strip()
 
-    except Exception as err:
-        print("Помилка", err)
-        return 'Сталась помилка!'
+    except Exception:
+        return None

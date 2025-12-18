@@ -12,23 +12,18 @@ def extract_move_ai(text: str) -> str | None:
     # normalizing text for better ai recognition
     text = normalize_text(text)
     prompt = f"""
-        Ти аналізуєш команди користувача для шахів.
-
-        Завдання:
-        - Якщо у фразі є хід у форматі шахів — поверни ТІЛЬКИ його у форматі: a2a4
-        - Якщо хід неможливо визначити — поверни слово: error
-
-        Приклади:
-        "Перемісти пішака а2 на а4" → a2a4
-        "Перемісти пішака g3 на g4, хоча ні, краще пішака b2, b4" → a2a3
-        "ходи конем з g1 на f3" → g1f3
-        "я не знаю" → error
-
-        Фраза:
         {text}
     """
     result = ask_groq(prompt).strip().lower()
-    return result if result != "error" else None
+    # check if an error occured or ai returned "error" due to not being able to find move
+    if result == "error" or None:
+        return None
+    else:
+        # additional check if ai hallucinated
+        match = MOVE_RE.search(result)
+        if not match:
+            return None
+        else: return match.group()
 
 # normalize voice recognized text
 def normalize_text(text: str) -> str:
@@ -52,20 +47,12 @@ def normalize_text(text: str) -> str:
 # extract move from default message (a2a4 or a2 a4)
 def extract_move(text: str) -> str | None:
     text = re.sub(r'[^a-zA-Z0-9]', ' ', text.lower())
-    match_re = MOVE_RE.search(text)
+    match_re = list(MOVE_RE.finditer(text.lower()))
     if not match_re:
-        pos = []
-        for v in text.split():
-            match_pos_re = MOVE_POS_RE.search(v)
-            if match_pos_re:
-                pos.append(v)
-
-        if len(pos) > 1:
-            return "".join(pos[-2:])
+        match_pos_re = list(MOVE_POS_RE.finditer(text.lower()))
+        if len(match_pos_re) >= 2:
+            return match_pos_re[-1].group() + match_pos_re[-2].group()
         else: return None
     else:
         print(match_re)
-        last_group = match_re.lastgroup
-        if last_group:
-            return match_re.group(last_group)
-        else: return match_re.group()
+        return match_re[-1].group()
