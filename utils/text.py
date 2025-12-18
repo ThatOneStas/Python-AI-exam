@@ -51,4 +51,21 @@ def normalize_text(text: str) -> str:
 
 # extract move from default message (a2a4 or a2 a4)
 def extract_move(text: str) -> str | None:
-    ...
+    text = re.sub(r'[^a-zA-Z0-9]', ' ', text.lower())
+    match_re = MOVE_RE.search(text)
+    if not match_re:
+        pos = []
+        for v in text.split():
+            match_pos_re = MOVE_POS_RE.search(v)
+            if match_pos_re:
+                pos.append(v)
+
+        if len(pos) > 1:
+            return "".join(pos[-2:])
+        else: return None
+    else:
+        print(match_re)
+        last_group = match_re.lastgroup
+        if last_group:
+            return match_re.group(last_group)
+        else: return match_re.group()

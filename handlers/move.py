@@ -25,24 +25,18 @@ from aiogram.types import BufferedInputFile
 
 router = Router()
 
-# checker
-MOVE_RE = re.compile(r"[a-h][1-8][a-h][1-8]")
-MOVE_POS_RE = re.compile(r"[a-h][1-8][a-h][1-8]")
-
 # handle text message
 @router.message(GameStates.wait_for_move, F.text)
 async def handle_text_move(message: Message, state: FSMContext):
     # format text
     text = message.text.lower()
     # check
-    match = MOVE_RE.search(move)
+    move = extract_move(text)
     # error
-    if not match:
+    if not move:
         await message.answer("❌ Не зміг знайти хід. Напиши, наприклад: 'a2a4'")
         return
-
-    move = match.group()
-    # check if text matches move
+    # process move
     await move(message=message, move=text, state=state)
             
 # handle voice message
