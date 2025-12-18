@@ -3,9 +3,25 @@ from .answer import (
     answer_board,
     ask_for_move
 )
+from .speech import (
+    recognize_uk_from_file,
+)
+
+from .audio import (
+    extract_voice_file,
+    convert_ogg_to_wav,
+    download_file
+)
+
+from .groq import ask_groq
 
 __all__ = [
     "render_board",
     "answer_board",
-    "ask_for_move"
+    "ask_for_move",
+    "recognize_uk_from_file",
+    "extract_voice_file",
+    "convert_ogg_to_wav",
+    "download_file",
+    "ask_groq"
 ]

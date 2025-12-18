@@ -2,3 +2,5 @@
 .env
 requirements.txt
 test.py
+voice.wav
+voice.ogg

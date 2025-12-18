@@ -1,3 +1,4 @@
+import asyncio
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
@@ -9,33 +10,66 @@ from chess import Board, engine
 from states.game import GameStates
 
 from utils import (
-    render_board,
     answer_board,
-    ask_for_move
+    ask_for_move,
+    recognize_uk_from_file,
+    extract_voice_file,
+    convert_ogg_to_wav,
+    download_file,
+    ask_groq
 )
 
 #  ---
-import asyncio
 from aiogram.types import BufferedInputFile
 
 router = Router()
 
 # checker
 MOVE_RE = re.compile(r"[a-h][1-8][a-h][1-8]")
+MOVE_POS_RE = re.compile(r"[a-h][1-8][a-h][1-8]")
 
 # handle text message
 @router.message(GameStates.wait_for_move, F.text)
 async def handle_text_move(message: Message, state: FSMContext):
     # format text
     text = message.text.lower()
-    # check if text matches move
-    match = MOVE_RE.search(text)
+    # check
+    match = MOVE_RE.search(move)
     # error
     if not match:
         await message.answer("❌ Не зміг знайти хід. Напиши, наприклад: 'a2a4'")
         return
 
     move = match.group()
+    # check if text matches move
+    await move(message=message, move=text, state=state)
+            
+# handle voice message
+@router.message(GameStates.wait_for_move, F.voice)
+async def handle_voice_move(message: Message, state: FSMContext):
+    # get voice file
+    file = await extract_voice_file(message.voice.file_id)
+
+    # local paths
+    path_ogg = "voice.ogg"
+    path_wav = "voice.wav"
+
+    await download_file(file.file_path, path_ogg)
+
+    # convertation
+    convert_ogg_to_wav(path_ogg, path_wav)
+
+    text = recognize_uk_from_file(path_wav)
+
+    await message.answer(f"Received voice message, extracted text: {text}")
+
+# move processing logic
+async def move(message: Message, move: str, state: FSMContext):
+    # additional check
+    match = MOVE_RE.search(move)
+    if not match:
+        await message.answer("❌ Хід не є правильним, приклад ходу: 'a2a4'")
+        return
 
     data = await state.get_data()
     board = Board(data["board_fen"])
@@ -97,23 +131,26 @@ async def handle_text_move(message: Message, state: FSMContext):
         await state.set_state(GameStates.wait_for_move)
         await state.update_data(board_fen=board.fen())
         return
-            
-# handle voice message
-@router.message(GameStates.wait_for_move, F.voice)
-async def handle_voice_move(message: Message, state: FSMContext):
-    ...
 
-@router.message(GameStates.wait_for_oponent_move)
-async def ignore_as_oponent_move(message: Message):
-    await message.answer("⏳ Зачекай, хід опонента...")
+# extract move from voice-text with groq
+def extract_chess_move(text: str) -> str | None:
+    prompt = f"""
+        Ти аналізуєш команди користувача для шахів.
 
-@router.message(GameStates.processing_move)
-async def ignore_as_processing(message: Message):
-    await message.answer("⏳ Зачекай, обробляю твій хід...")
+        Завдання:
+        - Якщо у фразі є хід у форматі шахів — поверни ТІЛЬКИ його у форматі: a2a4
+        - Якщо хід неможливо визначити — поверни слово: error
 
-@router.message(GameStates.in_queue)
-async def ignore_as_processing(message: Message):
-    await message.answer("⏳ Зачекай, знаходжу суперника...")
+        Приклади:
+        "Перемісти пішака а2 на а4" → a2a4
+        "ходи конем з g1 на f3" → g1f3
+        "я не знаю" → error
+
+        Фраза:
+        {text}
+    """
+    result = ask_groq(prompt).strip().lower()
+    return result if result != "error" else None
 
 # --- temporary here
 # Process user move

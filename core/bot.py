@@ -6,5 +6,8 @@ from aiogram import Bot, Dispatcher
 load_dotenv()
 TOKEN = getenv("BOT_TOKEN")
 
+if not TOKEN:
+    raise RuntimeError("❌ Установіть BOT_TOKEN")
+
 dp = Dispatcher()
 bot = Bot(token=TOKEN)
