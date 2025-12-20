@@ -2,7 +2,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from .callback import MenuCallback
 
 def lose_btn():
-    return InlineKeyboardButton(text="🏳️ Здатись", callback_data=MenuCallback(action="lose").pack())
+    return InlineKeyboardButton(text="🏳️ Здатись", callback_data=MenuCallback(action="surrender").pack())
 
 def pause_btn():
     return InlineKeyboardButton(text="⏸ Зупинити та продовжити пізніше", callback_data=MenuCallback(action="pause").pack())

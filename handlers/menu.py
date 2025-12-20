@@ -2,11 +2,13 @@ from aiogram import Router
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from states.game import GameStates
+from datetime import datetime
 
 from keyboards import (
     MenuCallback,
     play_menu,
-    main_menu
+    main_menu,
+    stats_menu
 )
 
 from chess import Board
@@ -16,7 +18,17 @@ from utils import (
     ask_for_move
 )
 
+from services import (
+    get_user,
+    get_user_games,
+    create_game,
+    get_user_active_game,
+    surrender
+)
+
 router = Router()
+
+FORMAT_PATTERN = "%Y-%m-%dT%H:%M"
 
 @router.callback_query(MenuCallback.filter())
 async def menu_handler(call: CallbackQuery, callback_data: MenuCallback, state: FSMContext):
@@ -27,21 +39,75 @@ async def menu_handler(call: CallbackQuery, callback_data: MenuCallback, state: 
         )
 
     elif callback_data.action == "stats":
-        await call.message.answer("📊 Твоя статистика:")
+
+        tg_id = str(call.from_user.id)
+
+        user = await get_user(tg_id)
+        
+        if not user:
+            await call.message.answer("❌ Не вдалось отримати користувача")
+            return
+
+        await call.message.answer(
+            text="📊 Твоя статистика:\n" \
+            "\n🤖 PVE:\n" \
+            f"- перемог: {user['pve_wins']}\n" \
+            f"- нічиї: {user['pve_draws']}\n" \
+            f"- програші: {user['pve_defeats']}\n" \
+            "\n🌐 PVP:\n" \
+            f"- перемог: {user['pvp_wins']}\n" \
+            f"- нічиї: {user['pvp_draws']}\n" \
+            f"- програші: {user['pvp_defeats']}",
+            reply_markup=stats_menu()
+        )
+
+    elif callback_data.action == "stat_back":
+        await call.message.answer(text="✅ Повернуто назад",
+                                  reply_markup=main_menu())
+    
+    elif callback_data.action == "stat_games":
+
+        tg_id = str(call.from_user.id)
+
+        games = await get_user_games(tg_id)
+        history = "\n\n🕳 Схоже ти ще не грав.."
+
+        games = games["games"]
+
+        if games != []:
+            history = ""
+            for i in range(len(games)):
+                winner: str | None = games[i]['winner_color']
+                created_at = datetime.fromisoformat(games[i]['created_at']).strftime(FORMAT_PATTERN)
+                finished_at = datetime.fromisoformat(games[i]['finished_at']).strftime(FORMAT_PATTERN) if games[i]['finished_at'] else None
+                
+                history += f"\n\n{i+1}) Тривалість: {created_at} - {datetime.strptime(finished_at, FORMAT_PATTERN) if finished_at else '(гра продовжується)'},\n" \
+                           f"     переможець: {winner.capitalize() + (' - ⚪️' if winner == 'white' else ' - ⚫️') if winner else '(гра не завершена)'}"
+
+        await call.message.answer(
+            text="📊 Твоя історія матчів:" \
+            f"{history}",
+            reply_markup=stats_menu())
 
     elif callback_data.action == "pve":
 
-        await call.message.answer("🔄 Створюємо шахматний стіл...")
+        tg_id = str(call.from_user.id)
 
-        # try loading table from memory (temporary, will be switched to api logic)
-        try:
-            data = await state.get_data()
-            board = Board(data["board_fen"])
-            if board:
-                await answer_board(message=call.message, board=board, caption="✅ Стіл завантажено та знятий з паузи!")
-        except Exception:
-            board = Board()
-            await answer_board(message=call.message, board=board, caption="✅ Стіл створено!")
+        game = await create_game(tg_id)
+
+        if not game:
+            await call.message.answer("🔄 Завантажуємо існуючий стіл...")
+            game = await get_user_active_game(tg_id)
+        else:
+            await call.message.answer("🔄 Створюємо шахматний стіл...")
+
+        board = Board(game["fen"])
+        if board:
+            await answer_board(message=call.message,
+                               board=board,
+                               caption="✅ Стіл завантажено!\n\n" \
+                               "Виконуй ходи у текстовому форматі: a1a2 / a1 a2\n" \
+                               "Або ж у такомуж форматі, голосом! 🎤")
 
         await ask_for_move(message=call.message, pvp=False)
 
@@ -53,10 +119,23 @@ async def menu_handler(call: CallbackQuery, callback_data: MenuCallback, state: 
                                   reply_markup=play_menu()
                                 )
 
-    elif callback_data.action == "lose":
-        await call.message.answer("🏳️ Ти здався, жаль..",
-                                  reply_markup=main_menu()
-                                )
+    elif callback_data.action == "surrender":
+        tg_id = str(call.from_user.id)
+
+        result = await surrender(tg_id)
+
+        if not result:
+            await call.message.answer(
+                "⚠️ Щось пішло не так, скоріш за все - немає активної гри",
+                reply_markup=main_menu()
+            )
+        finished_at = datetime.fromisoformat(result['finished_at']).strftime(FORMAT_PATTERN)
+        await call.message.answer(
+            "🏳️ Ти здався, жаль..\n\n" \
+            f"Перемога: {result['winner_color']}" \
+            f"Гра завершилась о: {finished_at}",
+            reply_markup=main_menu()
+        )
         await state.clear()
     
     elif callback_data.action == "pause":

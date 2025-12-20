@@ -7,6 +7,7 @@ from .stop_game import (
     pve_menu,
     pvp_menu
 )
+from .stats_menu import stats_menu
 
 __all__ = [
     "MenuCallback",
@@ -15,5 +16,6 @@ __all__ = [
     "lose_btn",
     "pause_btn",
     "pve_menu",
-    "pvp_menu"
+    "pvp_menu",
+    "stats_menu"
 ]

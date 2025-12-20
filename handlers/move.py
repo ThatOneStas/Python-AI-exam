@@ -18,6 +18,11 @@ from utils import (
     extract_move,
 )
 
+from services import (
+    game_move,
+    game_move_bot
+)
+
 router = Router()
 
 # handle text message
@@ -63,24 +68,21 @@ async def handle_voice_move(message: Message, state: FSMContext):
 
 # move processing logic
 async def process_move(message: Message, move: str, state: FSMContext):
-    data = await state.get_data()
-    board = Board(data["board_fen"])
-
     # processing move
     await state.set_state(GameStates.processing_move)
+    tg_id = str(message.from_user.id)
     # get move result
-    result = await move_figure(move, board)
-
+    result = await game_move(tg_id, move)
     # check if move was successful
     if not result["success"]:
-        if result["status"] == "wrong_move":
+        if result["status"] == "illegal_move":
             # keep waiting for user move
             await message.answer("❌ Нелегальний хід, спробуй щось інше")
             await state.set_state(GameStates.wait_for_move)
             return
 
     # send board with successful move
-    await answer_board(message=message, board=board, caption="✅ Твій хід виконаний")
+    await answer_board(message=message, board=Board(result["fen"]), caption="✅ Твій хід виконаний")
 
     # check if move result was ordinary or final
     if result["status"] == "checkmate":
@@ -89,11 +91,18 @@ async def process_move(message: Message, move: str, state: FSMContext):
         await message.answer("🎖 Ти переміг! Вітаю!")
         return
     
+    # check if move result was ordinary or final
+    if result["status"] == "stalemate":
+        await state.clear()
+        # send win message
+        await message.answer("👾 Нічия, удачі наступного разу")
+        return
+    
     elif result["status"] == "moved":
         await state.set_state(GameStates.wait_for_oponent_move)
 
     # if 'moved' - game has not ended yet, do bot's move
-    result_bot = await stockfish_move(board)
+    result_bot = await game_move_bot(tg_id)
 
     # give user time to glance board with his move
     await asyncio.sleep(1.5)
@@ -103,12 +112,12 @@ async def process_move(message: Message, move: str, state: FSMContext):
     await asyncio.sleep(2)
 
     # send board with bot's move
-    await answer_board(message=message, board=board, caption="💥 Бот зробив свій хід")
+    await answer_board(message=message, board=Board(result_bot["fen"]), caption="💥 Бот зробив свій хід")
 
 
     # check if an error could occure during bot's move
     if not result_bot["success"]:
-        await message.answer("⚠️ Упс, бот помилився..")
+        await message.answer("⚠️ Упс, бот зламався")
         return
     
     if result_bot["status"] == "checkmate":
@@ -121,7 +130,6 @@ async def process_move(message: Message, move: str, state: FSMContext):
         # ask for user move
         await ask_for_move(message=message, pvp=False)
         await state.set_state(GameStates.wait_for_move)
-        await state.update_data(board_fen=board.fen())
         return
 
 # --- temporary here

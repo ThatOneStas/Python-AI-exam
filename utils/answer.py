@@ -1,5 +1,5 @@
 import asyncio
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup
 from chess import Board
 from typing import Literal
 
@@ -16,7 +16,7 @@ async def answer_board(message: Message, board: Board, caption: str):
         caption=caption
     )
 
-async def ask_for_move(message: Message, pvp: bool):
-    await message.answer(text="♟ Твоя черга:",
+async def ask_for_move(message: Message, pvp: bool, text: str = "♟ Твоя черга:"):
+    await message.answer(text=text,
                         reply_markup=pvp_menu() if pvp else pve_menu()
                     )
