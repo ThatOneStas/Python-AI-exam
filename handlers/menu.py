@@ -8,7 +8,8 @@ from keyboards import (
     MenuCallback,
     play_menu,
     main_menu,
-    stats_menu
+    stats_menu,
+    stats_games_menu
 )
 
 from chess import Board
@@ -62,7 +63,7 @@ async def menu_handler(call: CallbackQuery, callback_data: MenuCallback, state: 
         )
 
     elif callback_data.action == "stat_back":
-        await call.message.answer(text="✅ Повернуто назад",
+        await call.message.answer(text="✅ Повернуто назад, що обереш тепер?",
                                   reply_markup=main_menu())
     
     elif callback_data.action == "stat_games":
@@ -87,7 +88,7 @@ async def menu_handler(call: CallbackQuery, callback_data: MenuCallback, state: 
         await call.message.answer(
             text="📊 Твоя історія матчів:" \
             f"{history}",
-            reply_markup=stats_menu())
+            reply_markup=stats_games_menu())
 
     elif callback_data.action == "pve":
 
@@ -107,7 +108,7 @@ async def menu_handler(call: CallbackQuery, callback_data: MenuCallback, state: 
                                board=board,
                                caption="✅ Стіл завантажено!\n\n" \
                                "Виконуй ходи у текстовому форматі: a1a2 / a1 a2\n" \
-                               "Або ж у такомуж форматі, голосом! 🎤")
+                               "Або ж у такому ж форматі, голосом 🎤")
 
         await ask_for_move(message=call.message, pvp=False)
 
@@ -126,20 +127,21 @@ async def menu_handler(call: CallbackQuery, callback_data: MenuCallback, state: 
 
         if not result:
             await call.message.answer(
-                "⚠️ Щось пішло не так, скоріш за все - немає активної гри",
+                "⚠️ Щось пішло не так, скоріш за все - немає активної гри\n\nСпробуй створити нову гру!",
                 reply_markup=main_menu()
             )
         finished_at = datetime.fromisoformat(result['finished_at']).strftime(FORMAT_PATTERN)
         await call.message.answer(
             "🏳️ Ти здався, жаль..\n\n" \
             f"Перемога: {result['winner_color']}" \
-            f"Гра завершилась о: {finished_at}",
+            f"Гра завершилась о: {finished_at}" \
+            "\n\nТи повернувся у головне меню, сподіваюсь наступного разу ти будеш йти до кінця! 🏆",
             reply_markup=main_menu()
         )
         await state.clear()
     
     elif callback_data.action == "pause":
-        await call.message.answer("▶️ Партія на паузі та збережена!",
+        await call.message.answer("▶️ Партія збережена, повертайся коли забажаєш!",
                                   reply_markup=main_menu()
                                 )
         await state.set_state(GameStates.idle)

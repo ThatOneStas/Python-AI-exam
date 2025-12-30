@@ -16,10 +16,17 @@ async def start_handler(msg: types.Message):
     user = await create_user(tg_id)
 
     if not user:
-        await msg.answer("❌ Помилка створення користувача")
+        await msg.answer(
+            "З поверненням у Chess! Оберіть дію:\n" \
+            "\n1) Перейти до розділу ігор," \
+            "\n2) Перейти до статистики.",
+            reply_markup=main_menu(),
+        )
         return
 
     await msg.answer(
-        "Вітаю у Chess! Обери дію:",
+        "Вітаю у Chess! Оберіть дію:\n" \
+        "\n1) Перейти до розділу ігор," \
+        "\n2) Перейти до статистики.",
         reply_markup=main_menu(),
     )
